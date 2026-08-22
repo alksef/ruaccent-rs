@@ -1,0 +1,21 @@
+[package]
+name = "ruaccent_rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+flate2 = "1.1.9"
+ort = { version = "2.0.0-rc.13", features = ["download-binaries"] }
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11.0"
+tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+
+[dev-dependencies]
+criterion = "0.5"
+serde_json = "1"
+
+[[bench]]
+name = "pipeline"
+harness = false
