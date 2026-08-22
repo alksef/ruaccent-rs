@@ -1,0 +1,7 @@
+target/
+.work/
+*.log
+opencode.json
+.idea/
+CLAUDE.md
+docs/development/
