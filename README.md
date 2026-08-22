@@ -62,32 +62,6 @@ This produces `<out-dir>/<pack-id>/{manifest.json,nn/,dictionary/}` where
 notices — the layout expected by the model-pack discovery of the consuming
 application.
 
-## Repository layout
-
-| Path | What |
-|---|---|
-| `src/text/` | razdel-compatible sentence/word splitting (port of the razdel rules + `TextPreprocessor`) |
-| `src/dict/` | gzip+JSON dictionaries, custom overrides with upstream merge order |
-| `src/tokenization/` | CharTokenizer (character-level, nn_accent) |
-| `src/models/` | ONNX models: nn_accent, nn_omograph (NLI), nn_yo, stress-usage predictor |
-| `src/pipeline.rs` | `process_all` end-to-end |
-| `src/bin/pack.rs` | model-pack builder with SHA-256 manifest |
-| `golden/` | captured Python reference (corpus + per-stage artifacts incl. logits) |
-| `tools/golden_dump.py` | regenerates the golden reference from upstream Python |
-| `benches/`, `tools/bench_python.py` | criterion benches + Python baseline |
-
-## Testing
-
-Tests that touch real models need the model workdir:
-
-```powershell
-$env:RUACCENT_TINY_WORKDIR = "C:\path\to\tiny"
-cargo test            # 37 tests incl. golden parity (input_ids bitwise, logits 1e-4)
-cargo bench           # criterion, group `process_all`
-```
-
-Without the variable, model tests are skipped; pure text/dict tests always run.
-
 ## License
 
 MIT — see [LICENSE](LICENSE). This is a port of RUAccent by Denis Petrov
