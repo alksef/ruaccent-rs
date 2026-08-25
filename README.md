@@ -41,6 +41,19 @@ let mut accentor = RuAccent::load_with_custom(
 )?;
 ```
 
+Choose a non-`tiny` omograph model directory (`workdir/nn/nn_omograph/<model>`):
+
+```rust
+let mut accentor = RuAccent::load_with_omograph(workdir, "medium")?;
+// or with overrides too:
+let mut accentor = RuAccent::load_with_omograph_and_custom(
+    workdir, "medium", &custom_dict, &custom_homographs,
+)?;
+```
+
+The model id must be a plain directory name: empty ids, `.`/`..`, absolute
+paths and path separators are rejected with `RuAccentError::InvalidOmographModel`.
+
 The output uses upstream's `+` notation (a `+` precedes the stressed vowel).
 It is an accentor-level format — convert to whatever your TTS expects
 (U+0301, SSML, phonemes) in your own adapter.

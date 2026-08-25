@@ -22,6 +22,7 @@ pub enum RuAccentError {
     Omograph(OmographModelError),
     Accent(AccentModelError),
     Stress(StressModelError),
+    InvalidOmographModel(String),
 }
 
 impl std::fmt::Display for RuAccentError {
@@ -32,6 +33,9 @@ impl std::fmt::Display for RuAccentError {
             RuAccentError::Omograph(e) => write!(f, "{e}"),
             RuAccentError::Accent(e) => write!(f, "{e}"),
             RuAccentError::Stress(e) => write!(f, "{e}"),
+            RuAccentError::InvalidOmographModel(name) => {
+                write!(f, "invalid omograph model id: {name:?}")
+            }
         }
     }
 }
@@ -74,7 +78,7 @@ pub struct RuAccent {
 
 impl RuAccent {
     pub fn load(workdir: &Path) -> Result<Self, RuAccentError> {
-        Self::load_with_custom(workdir, &HashMap::new(), &HashMap::new())
+        Self::load_with_omograph(workdir, "tiny")
     }
 
     pub fn load_with_custom(
@@ -82,9 +86,32 @@ impl RuAccent {
         custom_dict: &HashMap<String, String>,
         custom_homographs: &HashMap<String, Vec<String>>,
     ) -> Result<Self, RuAccentError> {
+        Self::load_with_omograph_and_custom(workdir, "tiny", custom_dict, custom_homographs)
+    }
+
+    /// Загрузить workdir с выбранным каталогом модели омографов из
+    /// `workdir/nn/nn_omograph/<model>`.
+    pub fn load_with_omograph(workdir: &Path, omograph_model: &str) -> Result<Self, RuAccentError> {
+        Self::load_with_omograph_and_custom(
+            workdir,
+            omograph_model,
+            &HashMap::new(),
+            &HashMap::new(),
+        )
+    }
+
+    /// Загрузить workdir с выбранным каталогом модели омографов и
+    /// пользовательскими словарями/омографами.
+    pub fn load_with_omograph_and_custom(
+        workdir: &Path,
+        omograph_model: &str,
+        custom_dict: &HashMap<String, String>,
+        custom_homographs: &HashMap<String, Vec<String>>,
+    ) -> Result<Self, RuAccentError> {
+        let omograph_dir = omograph_dir(workdir, omograph_model)?;
         let dicts = dict::with_overrides(dict::load(workdir)?, custom_dict, custom_homographs);
         let yo = YoHomographModel::load(&workdir.join("nn/nn_yo_homograph_resolver"))?;
-        let omograph = OmographModel::load(&workdir.join("nn/nn_omograph/tiny"))?;
+        let omograph = OmographModel::load(&omograph_dir)?;
         let accent = {
             let nn = workdir.join("nn/nn_accent");
             AccentModel::load(&nn.join("model.onnx"), &nn.join("config.json"), &nn.join("vocab.txt"))?
@@ -226,6 +253,38 @@ impl RuAccent {
     }
 }
 
+/// Проверить имя модели омографов: не пустое, не `.`/`..`, не содержит
+/// разделителей пути и не является абсолютным путём. Возвращает осмысленную
+/// ошибку до любого IO.
+fn validate_omograph_model(model: &str) -> Result<(), RuAccentError> {
+    use std::path::Component;
+    let path = Path::new(model);
+    let invalid = model.is_empty()
+        || path.is_absolute()
+        || path.components().any(|c| {
+            matches!(
+                c,
+                Component::CurDir
+                    | Component::ParentDir
+                    | Component::RootDir
+                    | Component::Prefix(_)
+            )
+        })
+        || model.contains('/')
+        || model.contains('\\');
+    if invalid {
+        Err(RuAccentError::InvalidOmographModel(model.to_string()))
+    } else {
+        Ok(())
+    }
+}
+
+/// Каталог модели омографов `workdir/nn/nn_omograph/<model>`.
+fn omograph_dir(workdir: &Path, model: &str) -> Result<std::path::PathBuf, RuAccentError> {
+    validate_omograph_model(model)?;
+    Ok(workdir.join("nn/nn_omograph").join(model))
+}
+
 /// Порт `RUAccent.has_punctuation`.
 fn has_punctuation(text: &str) -> bool {
     const PUNCT: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
@@ -340,5 +399,42 @@ mod tests {
     #[test]
     fn transfer_plus_preserves_original_case() {
         assert_eq!(transfer_plus("Дверь", "дв+ерь"), "Дв+ерь");
+    }
+
+    #[test]
+    fn omograph_dir_builds_path_for_valid_model_ids() {
+        let workdir = std::path::Path::new("/workdir");
+        for id in ["tiny", "medium", "tiny-v2", "base_lite"] {
+            let dir = omograph_dir(workdir, id).unwrap();
+            assert_eq!(dir, workdir.join("nn/nn_omograph").join(id));
+        }
+    }
+
+    #[test]
+    fn omograph_dir_rejects_invalid_model_ids() {
+        let workdir = std::path::Path::new("/workdir");
+        let invalid = [
+            "",
+            ".",
+            "..",
+            "tiny/../../secret",
+            "tiny\\..\\..\\secret",
+            "foo/bar",
+            "foo\\bar",
+            "/absolute",
+            "C:\\abs\\path",
+        ];
+        for id in invalid {
+            assert!(
+                omograph_dir(workdir, id).is_err(),
+                "expected rejection for {id:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_omograph_model_returns_typed_error() {
+        let err = omograph_dir(std::path::Path::new("/workdir"), "../escape").unwrap_err();
+        assert!(matches!(err, RuAccentError::InvalidOmographModel(_)));
     }
 }
