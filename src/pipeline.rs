@@ -238,7 +238,6 @@ impl RuAccent {
                 .dicts
                 .accents
                 .get(&lower_word)
-                .cloned()
                 .unwrap_or_else(|| lower_word.clone());
             if stressed_word == lower_word
                 && !has_punctuation(&lower_word)

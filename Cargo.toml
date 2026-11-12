@@ -1,10 +1,12 @@
 [package]
 name = "ruaccent_rs"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
 flate2 = "1.1.9"
+fst = "0.4"
+memmap2 = "0.9"
 ort = { version = "2.0.0-rc.13", features = ["download-binaries"] }
 regex = "1"
 serde = { version = "1", features = ["derive"] }

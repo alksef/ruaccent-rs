@@ -5,7 +5,8 @@ automatic Russian stress placement and homograph disambiguation
 (`за́мок/замо́к`, `пла́чу/плачу́`, ...). No Python, no sidecar process:
 ONNX inference via [`ort`](https://ort.pyke.io), tokenization via the
 official [`tokenizers`](https://github.com/huggingface/tokenizers) crate,
-dictionaries as gzip+JSON.
+dictionaries as memory-mapped binary FST (`accents.fst`, ~4.5 MB) with fallback
+to gzip+JSON.
 
 The port is **bit-compatible** with the original Python pipeline: every
 stage (sentence splitting, word splitting, tokenizer ids, ONNX logits,
